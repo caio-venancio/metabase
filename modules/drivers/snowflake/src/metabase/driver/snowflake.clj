@@ -1,6 +1,6 @@
 (ns metabase.driver.snowflake
   "Snowflake Driver."
-  (:refer-clojure :exclude [select-keys])
+  (:refer-clojure :exclude [select-keys not-empty])
   (:require
    [buddy.core.codecs :as codecs]
    [clojure.java.jdbc :as jdbc]
@@ -32,7 +32,7 @@
    [metabase.util.i18n :refer [tru]]
    [metabase.util.json :as json]
    [metabase.util.log :as log]
-   [metabase.util.performance :refer [select-keys]]
+   [metabase.util.performance :refer [select-keys not-empty]]
    [ring.util.codec :as codec])
   (:import
    (java.io File)
@@ -108,8 +108,10 @@
                                 (format "jdbc:snowflake:%s" sub))
                               (format "jdbc:snowflake://%s.snowflakecomputing.com" account))
         opts-str (sql-jdbc.common/additional-opts->string :url
-                                                          {:user (codec/url-encode user)
-                                                           :private_key_file (codec/url-encode (.getCanonicalPath ^File private-key-file))})
+                                                          (cond-> {:user (codec/url-encode user)
+                                                                   :private_key_file (codec/url-encode (.getCanonicalPath ^File private-key-file))}
+                                                            (:db details)
+                                                            (assoc :db (codec/url-encode (:db details)))))
         new-conn-uri (sql-jdbc.common/conn-str-with-additional-opts existing-conn-uri :url opts-str)]
     (-> details
         (assoc :connection-uri new-conn-uri)
